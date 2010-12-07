@@ -1,0 +1,2 @@
+export 'CONFIG_SQLALCHEMY_ECHO=true'
+export 'CONFIG_SQLALCHEMY=postgresql://postgres:postgres@localhost/contacts'
