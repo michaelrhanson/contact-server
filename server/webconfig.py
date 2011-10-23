@@ -1,0 +1,1 @@
+HOSTNAME="mozillalabs.com"

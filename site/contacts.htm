@@ -1,0 +1,561 @@
+<html>
+<head>
+<script src="js/contact_server.js"></script>
+<script src="js/sources/fb.js"></script>
+<script src="js/sources/googlecontacts.js"></script>
+<script src="js/sources/gravatar.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+<title>Contacts</title>
+<style>
+#contacts {
+	position:absolute;
+	left: 4px;
+	top: 32px;
+}
+#detail {
+	position:absolute;
+	left: 4px;
+	top: 32px;
+	font-family:"Gill Sans","Arial",sans-serif;	
+}
+#setup {
+	position:absolute;
+	left: 4px;
+	top: 2px;
+	width:100%;
+	font:9pt "Gill Sans";
+}
+#add_sources {
+	margin-right:16px;
+}
+.detail .portraitbox {
+	display:inline-block;
+}
+.detail .head {
+	font:18pt "Gill Sans";
+	font-weight:bold;
+	display:inline-block;
+}
+.detail .personal {
+	display:inline-block;
+	vertical-align: top;
+}
+.detail .personal {
+	display:inline-block;
+	vertical-align: top;
+}
+.detail .headbox {
+	vertical-align:top;
+	padding-left:0px;
+	padding-top:0px;
+}
+.detail .activities {
+	font:10pt "Gill Sans";
+	padding-left:6pt;
+	display:inline-block;
+	min-width:600px;
+	max-width:600px;
+	width:600px;
+}
+.detail .info {
+	display:inline-block;
+	min-width:270px;
+	max-width:270px;
+	vertical-align:top;
+}
+.detail .row {
+	font:9pt "Gill Sans";
+	margin-bottom:2px;
+}
+.detail .row .label {
+	display:inline-block;
+	max-width:80px;	
+	width:80px;
+	vertical-align:top;
+}
+.detail .row .value {
+	display:inline-block;
+	max-width:180px;
+	width:180px;
+	vertical-align:top;
+}
+.activities .title {
+
+}
+.activities .date {
+	font:8pt "Gill Sans";
+	padding-left:6px;
+}
+
+.contact {
+	width:120px; /*120px;*/
+	min-height:140px; /*140px;*/
+	vertical-align:top;
+	font-family:"Gill Sans";
+	font-size:9pt;
+	font-weight:bold;
+	display:inline-block;
+	word-wrap:break-word;
+	position:relative;
+	cursor:pointer;
+}
+.portraitbox {
+	max-width:100px;
+	width:100px;
+	min-height:100px;
+	vertical-align:center;
+	text-align:center;
+}
+.hoverbox {
+	position:absolute;
+	left:100px;
+	top:10px;
+	z-index:2;
+	background-color:#f0f0f0;
+	border:1px solid #aaaaaa;
+	width:250px;
+	font:8pt Arial;
+}
+.hover_heading {
+	font-weight:bold;
+	width:248px;
+}
+.hover_listrow {
+	width:248px;
+}
+.hover_label {
+	width:60px;
+	display:inline-block;
+	overflow:hidden;
+}
+.hover_value {
+	width:176px;
+	display:inline-block;
+	overflow:hidden;
+}
+#activity {
+	position:absolute;
+	top:20px;
+	font:9pt "Gill Sans";
+}
+#photos_of {
+	margin-top:16px;
+	margin-left:32px;
+	font:bold 18pt "Gill Sans";
+	width:840px;
+}
+#photos_of .head {
+	display:block;
+}
+.photo_of {
+	max-width:200px;
+	max-height:200px;
+	margin-right:8px;
+	margin-top:8px;
+	text-align:center;
+	vertical-align:center;
+	display:inline-block;
+}
+.photo_of a img {
+	max-width:200px;
+	max-height:200px;	
+}
+
+</style>
+</head>
+<body>
+
+<div id="setup">
+	<a href="#all" id="showall">All Contacts</a>
+	<div id="add_sources" style="float:right">
+		Add:
+		<a href="/authorize/google">Google</a>
+		<a href="/connect/facebook">Facebook</a>
+		<!--<a href="/static/contacts_jetpack.xpi">Local</a>-
+		-- -->
+		<!--<a href="#poll" id="poll">Poll Activities</a>	-->
+		--
+		<a href="#del" id="reset">Reset Demo</a>	
+	</div>
+</div>
+<div id="contacts"></div>
+<div id="activity"></div>
+<div id="detail"></div>
+
+<div id="detail2">
+<div id="detail_navbar">
+</div>
+<div id="detail_content">
+	<div id="detail_content_left">
+		<div id="detail_content_head">
+		</div>
+		<div id="detail_content_photosof">
+		</div>
+		<div id="detail_content_favs">
+		</div>
+	</div>
+	<div id="detail_content_right">
+		<div id="detail_content_profile">
+		</div>
+		<div id="detail_content_contacts">
+		</div>
+	</div>
+</div>
+</div>
+
+<script>
+var gContactsServer;
+var gObserver = new ContactServerObserver();
+var gDetailFocus;
+gObserver.observe = function(subject, data) {
+	if (subject == REFRESH_FINISHED) {
+		render();
+		gContactsServer.updateRecentActivity({}, function() {
+			gContactsServer.updateContactScoring(render);
+		});
+	}
+	if (subject == ACTIVITY_FINISHED) {
+		if (gDetailFocus) renderDetail(gDetailFocus);
+		else render();
+	}	
+	if (subject == DISCOVERY_FINISHED) {
+		// need to re-merge to find current result;
+		// ack, currently no way to do this other than
+		// repulling the entire database :(
+
+		// But, argh, that blows away the
+		// activities results, which are stored
+		// ephemerally.
+		// 
+		// Stash'em for now.
+		/*
+		var stashedActivities = gDetailFocus.activities;
+		console.log("Discovery finished");
+		gContactsServer.getMerged({}, function(result) {
+			for (var i in result) {
+				if (result[i].sources.indexOf(gDetailFocus.sources[0]) >= 0) {
+					console.log("Found re-merged record; rendering");
+					result[i].activities = stashedActivities;
+					gDetailFocus = result[i];
+					renderDetail(gDetailFocus);
+					break;
+				}
+			}
+		});*/
+	}		
+}
+
+
+$(document).ready(function() {
+	window.setTimeout(function() {
+		gContactsServer = new ContactServer();
+		gContactsServer.addSource(new FacebookSource());
+		gContactsServer.addSource(new GoogleContactsSource());
+		gContactsServer.addSource(new GravatarContactsSource());
+		try {
+			gContactsServer.addSource(new MacLocalContactSource());
+		} catch (e) {}
+		gContactsServer.addObserver(gObserver);
+		gContactsServer.init(refreshSources);
+	}, 500);
+});
+$("#showall").click(function() {
+	gDetailFocus = null;
+	render();
+});
+$("#reset").click(function() {
+	gContactsServer._deleteAll(render);
+})
+$("#poll").click(function() {
+	gContactsServer.updateActivities({});
+})
+
+function refreshSources()
+{
+	gContactsServer.refreshAll();
+}
+
+function formatDate(dateStr)
+{
+  if (!dateStr) return "null";
+  
+  var now = new Date();
+  var then = new Date(dateStr);
+
+  if (then.getDate() != now.getDate() || then.getMonth() != now.getMonth() || then.getYear() != now.getYear())
+  {
+     var dayDelta = (new Date().getTime() - then.getTime() ) / 1000 / 60 / 60 / 24 // hours
+     if (dayDelta < 2) str = "yesterday";
+     else if (dayDelta < 7) str = Math.floor(dayDelta) + " days ago";
+     else if (dayDelta < 14) str = "last week";
+     else if (dayDelta < 30) str = Math.floor(dayDelta) + " days ago";
+     else str = Math.floor(dayDelta /30)  + " month" + ((dayDelta/30>2)?"s":"") + " ago";
+  } else {
+      var str;
+      var hrs = then.getHours();
+      var mins = then.getMinutes();
+      
+      var hr = Math.floor(Math.floor(hrs) % 12);
+      if (hr == 0) hr =12;
+      var mins = Math.floor(mins);
+      str = hr + ":" + (mins < 10 ? "0" : "") + Math.floor(mins) + " " + (hrs >= 12 ? "P.M." : "A.M.");
+  }
+  return str;
+}
+
+
+function findBestAsset(list, desired) {
+	var b;
+	for (var i in list) {
+		if (!b) b = list[i];
+		else {
+			if (list[i].type == desired) {
+				b = list[i];
+			}
+		}
+	}
+	return b;
+}
+
+function renderInfoArea(list, container)
+{
+	for (var i in list)
+	{
+		var item = list[i];
+		var row = $("<div class='row'>");
+		if (item.type) {
+			row.append($("<div class='label'>").text(item.type));
+		} else {
+			row.append($("<div class='label'>"));
+		}
+		row.append($("<div class='value'>").text(item.value));
+		container.append(row);
+	}
+}
+
+function renderDetail(c)
+{
+	$("#detail").empty();
+	var d = $("<div class='detail'>");
+	var hb = $("<div class='headbox'>")
+	var pb = $("<div class='portraitbox'>");
+	if (c.photos) {
+		pb.append($("<img class='portrait'>").attr({"src":findBestAsset(c.photos, "w100").value}));
+	} else {
+		pb.append($("<img class='portrait'>").attr({"src":"i/no_photo.gif"}))
+	}
+	hb.append(pb);
+	var personal = $("<div class='personal'>");
+	personal.append($("<div class='head'>").text(c.displayName));
+	if (c.organizations) {
+		for (var i in c.organizations) {
+			var title = $("<div class='title'>");
+			var s = "";
+			if (c.organizations[i].title) s += c.organizations[i].title;
+			if (c.organizations[i].department) s += (s.length>0?", ":"") + c.organizations[i].department;
+			if (c.organizations[i].name) s += (s.length>0?", ":"") + c.organizations[i].name;
+			title.text(s);
+			personal.append(title);
+		}
+	}
+	hb.append(personal);
+	d.append(hb);
+
+	var contentBox = $("<div class='content'>");
+	var info = $("<div class='info'>");	
+	if (c.emails) renderInfoArea(c.emails, info);
+	if (c.urls) renderInfoArea(c.urls, info);
+	if (c.phones) renderInfoArea(c.phones, info);
+//	renderInfoArea(c.addresses, info);
+
+	var act = $("<div id='activity_timeline' class='activities'>");
+
+	if (c.photos_of) {
+		var photosOf = $("<div id='photos_of'>");
+		var label = $("<div class='head'>").text("Photos of " + ((c.name && c.name.givenName) ? c.name.givenName : c.displayName));
+		photosOf.append(label);
+		for (var i=0;i<c.photos_of.length;i++) {
+			var po = $("<div class='photo_of'>");
+			var a = $("<a>").attr("href", c.photos_of[i].link);
+			var img = $("<img>").attr("src", c.photos_of[i].src);
+			a.append(img);
+			po.append(a);
+			photosOf.append(po);
+		}
+		info.append(photosOf);
+	}
+
+	if (c.activities) {
+	
+		for (var i=c.activities.length-1;i>=0;i--) {
+			var a = $("<div style='vertical-align:top;margin-bottom:8px'>");
+			var actI = null;
+			if (c.activities[i].icon) {
+				actI = $("<img style='padding-right:2px;vertical-align:top' class='icon'>").attr({
+					width:16,
+					height:16,
+					src:c.activities[i].icon	
+				});
+			} else {
+				actI = $("<div style='width:16px;display:inline-block'>");
+			}
+			var actContent = $("<div style='display:inline-block;width:500px'>");
+			var actT = $("<span class='title'>").text(c.activities[i].title);
+			var actD = $("<span class='date'>").text(" (" + formatDate(c.activities[i].date) + ")");
+			if (c.activities[i].picture) {
+				var pic = $("<div style='float:left;padding-right:4px'>");
+				var img = $("<img>").attr({src:c.activities[i].picture});
+				if (c.activities[i].link) {
+					var link = $("<a>").attr({href:c.activities[i].link, target:"_blank"});
+					link.append(img);
+					pic.append(link);
+				} else {
+					pic.append(img);
+				}
+
+				actContent.append(pic);
+			}
+			a.append(actI);
+			actContent.append(actT);
+			actContent.append(actD);
+			a.append(actContent);
+			act.append(a);
+		}
+	}
+	contentBox.append(info);
+	contentBox.append(act);
+	d.append(contentBox);
+
+	$("#detail").append(d);
+}
+
+function renderContact(c)
+{
+	var d = $("<div class='contact'>");
+	var pb = $("<div class='portraitbox'>");
+	if (c.photos) {
+		pb.append($("<img class='portrait'>").attr({"src":findBestAsset(c.photos, "w100").value}));
+	} else {
+		pb.append($("<img class='portrait'>").attr({"src":"i/no_photo.gif"}))
+	}
+	d.append(pb);
+	d.append($("<div>").text(c.displayName));
+	if (c.activities && c.activities[0]) {
+		d.append($("<div class='recency'>").text(formatDate(c.activities[0])));
+	}
+
+	var hoverBox;
+	d.hover(function() {
+		var target = $(this);
+		if (hoverBox) hoverBox.remove();
+		hoverBox = renderContactHoverbox(c);
+		hoverBox.fadeIn(250);
+		target.append(hoverBox);
+	}, function() {
+		//$(this).find("div:last").remove();
+		$(this).find(".hoverbox").fadeOut(250).remove();		
+	});	
+
+	d.click(function() {
+		$("#contacts").fadeOut(250);
+		gDetailFocus = c;
+		//gContactsServer.updateAllActivity(c);
+		gContactsServer.discoverContact(c);
+		renderDetail(c);
+		$("#detail").fadeIn(250);
+	})
+	return d;
+}
+
+
+function renderContactHoverbox(c)
+{
+	function renderHeading(label) {
+		return $("<div class='hover_heading'>").text(label);
+	}
+	function renderValueList(list, container) {
+		for (var i in list) {
+			var row = $("<div class='hover_listrow'>");
+			row.append($("<div class='hover_label'>").text(list[i].type));
+			row.append($("<div class='hover_value'>").text(list[i].value));
+			container.append(row);
+		}
+	}
+
+	var hoverbox = $("<div class='hoverbox' style='display:none'>");
+
+	hoverbox.append(renderHeading(c.displayName + ": " + c.frecency));
+	hoverbox.append($("<div>").text("First name: " + (c.name ? c.name.givenName : "")));
+	hoverbox.append($("<div>").text("Last name: " + (c.name ? c.name.familyName : "")));
+	if (c.emails) {
+		hoverbox.append(renderValueList(c.emails, hoverbox));
+	}
+	hoverbox.append($("<div>").text(c.sources));
+
+	/*
+	gContactsServer.getContactByID(c.source, c.id, function(result) {
+		hoverbox.append(renderHeading(result.displayName));
+		hoverbox.append($("<div>").text("First name: " + (result.name ? result.name.givenName : "")));
+		hoverbox.append($("<div>").text("Last name: " + (result.name ? result.name.familyName : "")));
+		if (result.emails) {
+			hoverbox.append(renderValueList(result.emails, hoverbox));
+		}
+		hoverbox.append($("<div>").text(result.source));
+		//hoverBox.text(JSON.stringify(result));
+	});
+	*/
+	return hoverbox;	
+}
+
+function render()
+{
+	$("#detail").empty();
+	$("#contacts").show();
+
+	gContactsServer.getMerged({}, function(result) {
+
+      	result.sort(function(a,b) {
+	       	try {
+	       		if (a.frecency && b.frecency) {
+	       			return b.frecency - a.frecency;
+	       		} else if (a.frecency) {
+	       			return -1;
+	       		} else if (b.frecency) {
+	       			return 1;
+	       		} else if (a.name && a.name.familyName && b.name && b.name.familyName) {
+					var ret= a.name.familyName.localeCompare(b.name.familyName);
+					if (ret == 0) {
+				 		return a.name.givenName.localeCompare(b.name.givenName);
+					} else {
+				 		return ret;
+					}
+				} else if (a.name && a.name.familyName) {
+					return -1;
+				} else if (b.name && b.name.familyName) {
+					return 1;
+				} else if (a.displayName && b.displayName) {
+					return a.displayName.localeCompare(b.displayName);
+				} else if (a.displayName) {
+					return -1;
+				} else if (b.displayName) {
+					return 1;
+				} else {
+					return a.id.localeCompare(b.id);
+				}
+	        } catch (e) {
+	          return -1;
+	        }
+	    });
+        /*		
+		var c = $("<div>")
+		for (var i in result) {
+			c.append(renderContact(result[i]));
+		}
+		$("#contacts").empty().append(c);
+		*/
+	});
+}
+</script>
+
+</body>
+</html>

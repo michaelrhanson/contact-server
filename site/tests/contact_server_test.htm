@@ -1,0 +1,102 @@
+<html>
+<head>
+<title>Test</title>
+<script type="text/javascript" src="./doctest.js"></script>
+<script src="../js/contact_server.js"></script>
+
+<!-- This stylesheet is optional, but does improve the output: -->
+<link rel="stylesheet" type="text/css" href="./doctest.css" />
+<style type="text/css">
+body {
+  font-family: "Gill Sans", sans-serif;
+}
+.test {
+	padding:4px;
+	font-weight:bold;
+	font-size:10pt;
+}
+.notes {
+	font-size:9pt;
+	font-weight:normal;
+}
+</style>
+</head>
+
+<body class="autodoctest">
+
+<h1>Tests</h1>
+<!--
+<div class="test">
+Create a database.
+<div class="notes">Will fail if you're running from a file: URL, 
+or if IndexedDB is not implemented or not allowed.</div>
+<pre class="doctest">
+$ var cs = new ContactServer();
+$ cs.init();
+</pre>
+</div>
+-->
+
+<div class="test">
+Basic insertion and lookup.
+<pre class="doctest">
+$ var cs = new ContactServer();
+$ var ready = false;
+$ cs.init(function() {ready=true}, true);
+$ wait(function() {return ready});
+$ cs.addContact( { source: "facespace", id: 12345, displayName:"John Doe" } );
+$ var result, gotResult = false;
+$ cs.getContactByID( "facespace", 12345, function(contact) {result = contact; gotResult = true;})
+$ wait(function() {return gotResult});
+$ result
+{displayName: "John Doe", id: 12345, source: "facespace"}
+</pre>
+</div>
+
+
+
+<div class="test">
+getMerged
+<pre class="doctest">
+$ var cs = new ContactServer();
+$ var ready = false;
+$ cs.init(function() {ready=true}, true);
+$ wait(function() {return ready});
+$ cs.addContact( { source: "zroogle", id: 12347, displayName:"John Doe", emails:[ {value:"foo@foo.com"}, {value:"bar@bar.com"}]} );
+$ cs.addContact( { source: "macespace", id: 12345, otherStuff:"something" , emails:[ {value:"foo@foo.com"}]} );
+$ cs.addContact( { source: "macespace", id: 12346, someOtherStuff:"something else", emails:[ {value:"bar@bar.com"}]} );
+$ cs.addContact( { source: "macespace", id: 12347, displayName: "Mr. Not Appearing In This Film"} );
+$ var result, gotResult = false;
+$ cs.getMerged({}, function(mergedResult) {result = mergedResult; gotResult = true;})
+$ wait(function() {return gotResult});
+$ result
+[
+  {
+    displayName: "John Doe",
+    emails: [{value: "foo@foo.com"}, {value: "bar@bar.com"}],
+    otherStuff: "something",
+    someOtherStuff: "something else",
+    sources: ["macespace.12345", "zroogle.12347", "macespace.12346"]
+  },
+  {displayName: "Mr. Not Appearing In This Film", sources: ["macespace.12347"]}
+]
+</pre>
+</div>
+
+
+
+</body> </html>
+
+<!--
+source: { id:12345}, "source.id": 12345, id: 12345, displayName:"John Doe"});
+
+$ wait(1000);
+$ cs.addContact( { source: "facebook", id: 12345, displayName:"John Doe"});
+$ wait(100);
+$ var result;
+$ cs.getContactByID( "facebook", 12345, function(contact) {result = contact;})
+$ wait(100);
+$ result
+{ source:"facebook", id:12345, displayName: "John Doe"}
+-->
+
