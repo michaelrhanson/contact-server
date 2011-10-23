@@ -1,0 +1,3 @@
+Very rudimentary right now.
+
+To run it, sudo python server/server.py and visit /static/contacts.htm
